@@ -13,4 +13,8 @@
         <PackageReference Include="Mono.Options" Version="6.12.0.148" />
     </ItemGroup>
 
+    <ItemGroup>
+        <TrimmerRootAssembly Include="M3U8Parser" />
+    </ItemGroup>
+
 </Project>
