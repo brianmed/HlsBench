@@ -345,24 +345,24 @@ public sealed class HlsClient : IAsyncDisposable
 
     public async Task DoWork()
     {
+        MediaPlaylist mediaPlaylist = null;
+
         while (this.DoWorkCancellationTokenSource.Token.IsCancellationRequested is false)
         {
-            MediaPlaylist mediaPlaylist = null;
-
             try
             {
-                if (mediaPlaylist is null || mediaPlaylist.PlaylistType.ToString() != "VOD")
+                if (mediaPlaylist is null || mediaPlaylist?.PlaylistType?.ToString() != "VOD")
                 {
                     mediaPlaylist = await GetMediaPlaylistAsync();
                 }
-
-                HashSet<string> currentSegments = new();
 
                 string baseUrlWithoutM3u8 = this.CurrentManifestUri.AbsoluteUri
                     .Remove(this.CurrentManifestUri.AbsoluteUri.Length - this.CurrentManifestUri.Segments[^1].Length)
                     .TrimEnd('/');
 
                 int segmentDownloadsRemaining = 2;
+
+                HashSet<string> seenUrls = new();
 
                 foreach(Segment segment in mediaPlaylist.MediaSegments.SelectMany(ms => ms.Segments))
                 {
@@ -382,10 +382,10 @@ public sealed class HlsClient : IAsyncDisposable
                     catch
                     { }
 
+                    seenUrls.Add(uri.ToString());
+
                     if (this.DownloadedSegments.Contains(uri.ToString()) is false && segmentDownloadsRemaining > 0)
                     {
-                        currentSegments.Add(uri.ToString());
-
                         using HttpRequestMessage httpRequestSegmentMessage = new()
                         {
                             Method = HttpMethod.Get,
@@ -427,7 +427,7 @@ public sealed class HlsClient : IAsyncDisposable
 
                 foreach (string url in urls)
                 {
-                    if (currentSegments.Contains(url))
+                    if (seenUrls.Contains(url))
                     {
                         continue;
                     }
@@ -439,7 +439,7 @@ public sealed class HlsClient : IAsyncDisposable
 
                 if (mediaPlaylist?.PlaylistType?.ToString() == "VOD")
                 {
-                    if (currentSegments.Count == 0)
+                    if (seenUrls.Count == DownloadedSegments.Count)
                     {
                         mediaPlaylist = null;
                         this.CurrentManifestUri = null;
